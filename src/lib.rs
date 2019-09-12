@@ -1,3 +1,7 @@
+mod config;
+mod scm_naive;
+mod symbol;
+
 #[cfg(test)]
 mod tests {
     #[test]
