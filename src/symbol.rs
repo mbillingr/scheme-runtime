@@ -1,10 +1,9 @@
-
 #[derive(Debug, Copy, Clone)]
 pub struct Symbol {
     name: &'static str,
 }
 
-trait StringInterner {
+pub trait StringInterner {
     /// if a string with the same name has been interned return it,
     /// otherwise call statify, intern the result and return it.
     fn interned(self) -> &'static str;
@@ -17,9 +16,9 @@ trait StringInterner {
 /// TODO: make sure the garbage collector can see the collection of interned strings.
 impl Symbol {
     /// Get interned symbol with given name.
-    fn new<T: StringInterner>(name: T) -> Self {
+    pub fn new<T: StringInterner>(name: T) -> Self {
         Symbol {
-            name: name.interned()
+            name: name.interned(),
         }
     }
 
@@ -27,9 +26,9 @@ impl Symbol {
     /// Uninterned symbols usually do not compare equal with any other symbol.
     /// However, if created from the same string slice, even these symbols will
     /// compare equal.
-    fn new_uninterned<T: StringInterner>(name: T) -> Self {
+    pub fn new_uninterned<T: StringInterner>(name: T) -> Self {
         Symbol {
-            name: name.statify()
+            name: name.statify(),
         }
     }
 }
@@ -40,9 +39,21 @@ impl PartialEq for Symbol {
     }
 }
 
+impl StringInterner for Symbol {
+    fn interned(self) -> &'static str {
+        interner_impl::get_interned_string(self.name)
+            .unwrap_or_else(|| interner_impl::set_interned_string(self.name))
+    }
+
+    fn statify(self) -> &'static str {
+        self.name
+    }
+}
+
 impl StringInterner for &'static str {
     fn interned(self) -> &'static str {
-        interner_impl::get_interned_string(self).unwrap_or_else(|| interner_impl::set_interned_string(self))
+        interner_impl::get_interned_string(self)
+            .unwrap_or_else(|| interner_impl::set_interned_string(self))
     }
 
     fn statify(self) -> &'static str {
@@ -52,9 +63,8 @@ impl StringInterner for &'static str {
 
 impl StringInterner for String {
     fn interned(self) -> &'static str {
-        interner_impl::get_interned_string(&self).unwrap_or_else(||{
-            interner_impl::set_interned_string(self.statify())
-        })
+        interner_impl::get_interned_string(&self)
+            .unwrap_or_else(|| interner_impl::set_interned_string(self.statify()))
     }
 
     fn statify(self) -> &'static str {
@@ -64,9 +74,8 @@ impl StringInterner for String {
 
 impl StringInterner for &String {
     fn interned(self) -> &'static str {
-        interner_impl::get_interned_string(&self).unwrap_or_else(||{
-            interner_impl::set_interned_string(self.statify())
-        })
+        interner_impl::get_interned_string(&self)
+            .unwrap_or_else(|| interner_impl::set_interned_string(self.statify()))
     }
 
     fn statify(self) -> &'static str {
@@ -76,9 +85,9 @@ impl StringInterner for &String {
 
 #[cfg(feature = "multi-threaded")]
 mod interner_impl {
-    use std::collections::HashSet;
-    use lazy_static::lazy_static;
     use crate::symbol::StringInterner;
+    use lazy_static::lazy_static;
+    use std::collections::HashSet;
     use std::sync::RwLock;
 
     lazy_static! {
@@ -97,35 +106,27 @@ mod interner_impl {
 
 #[cfg(feature = "single-threaded")]
 mod interner_impl {
-    use std::collections::HashSet;
-    use lazy_static::lazy_static;
-    use crate::symbol::StringInterner;
     use std::cell::UnsafeCell;
+    use std::collections::HashSet;
 
     thread_local! {
         static INTERNED_STRINGS: UnsafeCell<HashSet<&'static str>> = UnsafeCell::new(HashSet::new());
     }
 
     pub fn get_interned_string(s: &str) -> Option<&'static str> {
-        INTERNED_STRINGS.with(|is|unsafe {
-            (*is.get()).get(s).copied()
-        })
+        INTERNED_STRINGS.with(|is| unsafe { (*is.get()).get(s).copied() })
     }
 
     pub fn set_interned_string(s: &'static str) -> &'static str {
-        INTERNED_STRINGS.with(|is|unsafe {
-            (*is.get()).insert(s)
-        });
+        INTERNED_STRINGS.with(|is| unsafe { (*is.get()).insert(s) });
         s
     }
-
-
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Symbol;
     use super::StringInterner;
+    use super::Symbol;
     use std::ptr;
 
     #[test]
