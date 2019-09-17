@@ -7,6 +7,7 @@ pub use symbol::{StringInterner, Symbol};
 
 trait SchemeValue {
     type IntType;
+    type FloatType;
     type CharType;
 
     // constructors
@@ -15,6 +16,7 @@ trait SchemeValue {
     fn char(ch: Self::CharType) -> Self;
     fn symbol<T: StringInterner>(s: T) -> Self;
     fn int(i: Self::IntType) -> Self;
+    fn float(r: Self::FloatType) -> Self;
 
     fn cons(car: Self, cdr: Self) -> Self;
     fn vect(size: usize) -> Self;
